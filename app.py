@@ -1,9 +1,23 @@
-from flask import Flask, request, Response
-from config import WEBHOOK_SECRET_TOKEN, WEBHOOK_URL
-from handlers import process_message, process_callback_query
-from utils import write_log, LogType
+from flask import Flask, request, Response, jsonify
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+
+import hmac
+import hashlib
+import json
+
+from yookassa import Configuration as yooConfiguration
+
+from config import bot_username, WEBHOOK_SECRET_TOKEN, WEBHOOK_URL, YOOKASSA_WEBHOOK_URL, TEST_YOOKASSA_WEBHOOK_URL, YOOKASSA_ID, YOOKASSA_SECRET_KEY
+from config import IS_TEST_PAYMENTS, YOOKASSA_ID, YOOKASSA_SECRET_KEY, TEST_YOOKASSA_ID, TEST_YOOKASSA_SECRET_KEY
+from utils import write_log, LogType
+from database.data import update_statuses, daily
+from telegram import get_bot_info
+from payments import payment_processing, test_payment_processing
+
+from handlers.handlers import process_message, process_callback_query
+
+
 
 app = Flask(__name__)
 limiter = Limiter(
@@ -57,6 +71,68 @@ def webhook():
     except Exception as e:
         write_log(f'Ошибка при обработке webhook-запроса: {str(e)}', LogType.ERROR)
         return Response(status=200)
+
+# Тестовый обработчик платежей
+@app.route(TEST_YOOKASSA_WEBHOOK_URL, methods=['POST'])
+@limiter.exempt  # Освобождаем от ограничений rate-limiting
+def test_yookassa_webhook():
+    """
+    Обработчик webhook-запросов от ЮKassa
+    """
+    try:
+        # 1. Проверка подписи (обязательно!)
+        signature = request.headers.get('Content-SHA256')
+        if not verify_yookassa_signature(request.data, YOOKASSA_SECRET_KEY, signature):
+            write_log('Неверная подпись от ЮKassa', LogType.WARNING)
+            return Response(status=403)
+
+        # 2. Получение данных
+        data = request.get_json()
+
+        # 3. Обработка платежа
+        test_payment_processing(data=data)
+        
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        write_log(f'Ошибка обработки webhook ЮKassa: {str(e)}', LogType.ERROR)
+        return Response(status=500)
+
+@app.route(YOOKASSA_WEBHOOK_URL, methods=['POST'])
+@limiter.exempt  # Освобождаем от ограничений rate-limiting
+def yookassa_webhook():
+    """
+    Обработчик webhook-запросов от ЮKassa
+    """
+    try:
+        # 1. Проверка подписи (обязательно!)
+        signature = request.headers.get('Content-SHA256')
+        if not verify_yookassa_signature(request.data, YOOKASSA_SECRET_KEY, signature):
+            write_log('Неверная подпись от ЮKassa', LogType.WARNING)
+            return Response(status=403)
+
+        # 2. Получение данных
+        data = request.get_json()
+
+        # 3. Обработка платежа
+        payment_processing(data=data)
+        
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        write_log(f'Ошибка обработки webhook ЮKassa: {str(e)}', LogType.ERROR)
+        return Response(status=500)
+
+def verify_yookassa_signature(raw_data, secret_key, received_signature):
+    """
+    Проверка подписи webhook от ЮKassa
+    """
+    if not received_signature:
+        return False
+        
+    secret = secret_key.encode('utf-8')
+    expected_signature = hmac.new(secret, raw_data, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_signature, received_signature)
 
 @app.route('/')
 @limiter.limit("10 per minute")  # Ограничение на количество запросов в минуту
@@ -140,4 +216,21 @@ def not_found(e):
 
 if __name__ == '__main__':
     write_log('Запуск приложения...')
+    update_statuses()  # Вызов обновления статусов при старте
+    daily()  # Вызов ежедневных методов при старте
+
+    if IS_TEST_PAYMENTS:
+        yooConfiguration.account_id = TEST_YOOKASSA_ID
+        yooConfiguration.secret_key = TEST_YOOKASSA_SECRET_KEY
+    else:
+        yooConfiguration.account_id = YOOKASSA_ID
+        yooConfiguration.secret_key = YOOKASSA_SECRET_KEY
+
+    # Получаем имя пользователя бота
+    bot_info = get_bot_info()
+    if bot_info:
+        bot_username = bot_info['username']
+    else:
+        write_log(f'Ошибка при получении информации о боте', LogType.ERROR)
+
     app.run(host='0.0.0.0', port=5000)

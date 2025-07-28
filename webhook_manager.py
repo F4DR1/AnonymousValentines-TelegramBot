@@ -1,6 +1,8 @@
 import requests
+
 from config import TOKEN, WEBHOOK_SECRET_TOKEN, SERVER_URL, WEBHOOK_URL
 from utils import write_log, LogType
+
 
 
 def setup_webhook(webhook_url):

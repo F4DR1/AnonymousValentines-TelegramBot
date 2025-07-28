@@ -1,6 +1,9 @@
 import requests
-from config import TOKEN, WEBHOOK_SECRET_TOKEN
+
+from config import TOKEN
 from utils import write_log, LogType
+
+
 
 class UnsupportedMessageFormat(Exception):
     """Исключение для неподдерживаемых форматов сообщений"""
@@ -98,38 +101,54 @@ def process_media_files(message):
 
     return media_list, single_media
 
-def send_telegram_message(id, text, reply_markup=None):
+def send_telegram_message(user_id, text, reply_markup=None, message_id=None):
     """
     Функция для отправки текстового сообщения в Telegram
-    id: ID пользователя для отправки сообщения
-    text: текст сообщения
+    :param id: ID пользователя для отправки сообщения
+    :param text: текст сообщения
+    :param reply_markup: клавиатура (опционально)
+    :param message_id: ID сообщения для редактирования (если None — отправка нового)
     """
     try:
-        url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
-        params = {
-            'chat_id': id,
-            'text': text,
-            'parse_mode': 'HTML'
-        }
+        if message_id:
+            url = f'https://api.telegram.org/bot{TOKEN}/editMessageText'
+            params = {
+                'chat_id': user_id,
+                'message_id': message_id,
+                'text': text,
+                'parse_mode': 'HTML'
+            }
+        
+        else:
+            url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
+            params = {
+                'chat_id': user_id,
+                'text': text,
+                'parse_mode': 'HTML'
+            }
+
         if reply_markup:
             params['reply_markup'] = reply_markup
+
         response = requests.post(url, json=params)
         response.raise_for_status()
         return response.json()
+        
     except requests.exceptions.RequestException as e:
-        raise ValueError(f'Ошибка отправки сообщения: {str(e)}')
+        raise ValueError(f'Ошибка отправки/редактирования сообщения: {str(e)}')
 
-def send_telegram_media_single(id, file_id, media_type, reply_markup=None):
+def send_telegram_media_single(user_id, file_id, media_type, reply_markup=None):
     """
     Функция для отправки одиночного медиафайла в Telegram
     id: ID пользователя для отправки сообщения
     file_id: ID файла в Telegram
     media_type: тип медиафайла ('voice', 'sticker', 'video_note')
+    :param reply_markup: клавиатура (опционально)
     """
     try:
         url = f'https://api.telegram.org/bot{TOKEN}/send{media_type.capitalize()}'
         params = {
-            'chat_id': id,
+            'chat_id': user_id,
             media_type: file_id
         }
         if reply_markup:
@@ -140,16 +159,17 @@ def send_telegram_media_single(id, file_id, media_type, reply_markup=None):
     except requests.exceptions.RequestException as e:
         raise ValueError(f'Ошибка отправки медиафайла: {str(e)}')
 
-def send_telegram_media_group(id, media_list, reply_markup=None):
+def send_telegram_media_group(user_id, media_list, reply_markup=None):
     """
     Функция для отправки группы медиафайлов в Telegram
     id: ID пользователя для отправки сообщения
     media_list: список медиафайлов в формате [{'type': 'photo', 'media': file_id, 'caption': caption}, ...]
+    :param reply_markup: клавиатура (опционально)
     """
     try:
         url = f'https://api.telegram.org/bot{TOKEN}/sendMediaGroup'
         params = {
-            'chat_id': id,
+            'chat_id': user_id,
             'media': media_list
         }
         if reply_markup:
@@ -178,3 +198,45 @@ def get_bot_info():
     except Exception as e:
         write_log(f'Ошибка при получении информации о боте: {str(e)}', LogType.ERROR)
         return None
+
+def check_user_interaction(user_id):
+    """
+    Проверяет, взаимодействовал ли пользователь с ботом
+    user_id: ID пользователя для проверки
+    Возвращает True, если пользователь взаимодействовал с ботом, False в противном случае
+    """
+    try:
+        # Пробуем получить информацию о чате с пользователем
+        url = f'https://api.telegram.org/bot{TOKEN}/getChat'
+        params = {
+            'chat_id': user_id
+        }
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        if '400' in str(e):  # 400 Bad Request означает, что пользователь не взаимодействовал с ботом
+            return False
+        raise ValueError(f'Ошибка при проверке пользователя: {str(e)}')
+
+def get_user_info(user_id):
+    """
+    Получает информацию о пользователе
+    user_id: ID пользователя для получения информации
+    Возвращает информацию о пользователе
+    """
+    try:
+        url = f'https://api.telegram.org/bot{TOKEN}/getChat'
+        params = {
+            'chat_id': user_id
+        }
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("ok"):
+            return data["result"]  # Возвращаем данные о пользователе
+        return None  # Если API ответил, но данных нет, возвращаем None
+    except requests.exceptions.RequestException as e:
+        if '400' in str(e):  # 400 Bad Request означает, что пользователь не взаимодействовал с ботом
+            return None
+        raise ValueError(f'Ошибка при получении информации о пользователе: {str(e)}')
