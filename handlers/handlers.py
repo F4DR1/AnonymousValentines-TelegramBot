@@ -32,6 +32,7 @@ def process_message(message):
 
         # Получаем ID пользователя
         user_id = message['from']['id']
+        user_message_id = message['message_id']
 
         # Получаем пользовательские статус и дату его окончания
         user_status, user_status_end_date = data.get_access(user_id=user_id)
@@ -55,7 +56,7 @@ def process_message(message):
             if 'text' in message and message['text'].startswith('/'):
                 commands(message=message, user_id=user_id)  # Если это команда
             else:
-                messages(message=message, user_id=user_id)  # Если любое другое сообщение
+                messages(message=message, user_id=user_id, reply_to_message=user_message_id)  # Если любое другое сообщение
     
     except Exception as e:
         write_log(f'Ошибка при обработке message: {str(e)}', LogType.ERROR)
@@ -76,13 +77,18 @@ def process_callback_query(callback_query):
     try:
         # Получаем ID пользователя
         user_id = callback_query['from']['id']
+        message_id = callback_query['message']['message_id']
         
         # Удаляем пользователя из словаря получателей
         if user_id in recipients:
             del recipients[user_id]
 
         callback_data = callback_query['data']
-        callbacks(callback_data=callback_data, user_id=user_id)
+        callbacks(
+            callback_data=callback_data,
+            user_id=user_id,
+            message_id=message_id
+        )
     
     except Exception as e:
         write_log(f'Ошибка при обработке callback_query: {str(e)}', LogType.ERROR)

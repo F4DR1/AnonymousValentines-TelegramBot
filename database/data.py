@@ -41,21 +41,33 @@ def get_all_data(user_id: int):
         user = users[0] if users else None
 
 
-        # Проверка наличия данных пользователя
+        # Если пользователя нет в базе - заносим
         if user is None:
             # Создаём user
             user = {
                 'id': user_id,
                 'reveal_count': 0,
-                'user_status_id': 1
+                'user_status_id': 1,
+                'user_status_lvl': 1,
+                'user_status_end_date': None
             }
 
             # Вызов метода записи user в базу в таблицу users
-            db.save_data(table='users', data={'id': user['id'], 'reveal_count': user['reveal_count'], 'user_status_id': user['user_status_id']})
+            db.save_data(
+                table='users',
+                data={
+                    'id': user['id'],
+                    'reveal_count': user['reveal_count'],
+                    'user_status_id': user['user_status_id'],
+                    'user_status_lvl': user['user_status_lvl'],
+                    'user_status_end_date': user['user_status_end_date']
+                }
+            )
+        
+        return (user, all_user_statuses)
 
     finally:
         db.close_connection()
-        return (user, all_user_statuses)
 
 
 def get_access(user_id: int):
@@ -67,7 +79,7 @@ def get_access(user_id: int):
         return (status, user['user_status_end_date'])
     else:
         status = next((status for status in all_user_statuses if status['name'] == Status.DEFAULT.value))
-        return (status,)
+        return (status, user['user_status_end_date'])
 
 
 
@@ -133,7 +145,7 @@ def give_daily_reveals():
                 text=(
                     '⚜️ <b>Ежедневные раскрытия</b> ⚜️\n'
                     f'Сегодня вы получили <u>{gived_reveals} раскрытий</u>\n'
-                    f'Текущее количество раскрытий: <i>{user['reveal_count']} шт.</i>\n\n'
+                    f'Текущее количество раскрытий: <i>{new_user_reveal_count} шт.</i>\n\n'
                     f'💬 <i>Учтите, что если у вас больше <u>{max_daily_reveals} раскрытий</u>, то вам ничего не выдастся!</i>'
                 )
             )

@@ -14,7 +14,7 @@ class UnsupportedMessageFormat(Exception):
 def process_media_files(message):
     """
     Обрабатывает медиафайлы из сообщения
-    message: сообщение от пользователя
+    :param message: сообщение от пользователя
     Возвращает список медиафайлов и отдельные медиафайлы
     """
     # Список поддерживаемых форматов
@@ -101,13 +101,14 @@ def process_media_files(message):
 
     return media_list, single_media
 
-def send_telegram_message(user_id, text, reply_markup=None, message_id=None):
+def send_telegram_message(user_id, text, reply_markup=None, message_id=None, reply_to_message_id=None):
     """
     Функция для отправки текстового сообщения в Telegram
     :param id: ID пользователя для отправки сообщения
     :param text: текст сообщения
     :param reply_markup: клавиатура (опционально)
-    :param message_id: ID сообщения для редактирования (если None — отправка нового)
+    :param message_id: ID сообщения для редактирования/ответа (если None — отправка нового)
+    :param reply_to_message_id: ID сообщения для ответа (опционально)
     """
     try:
         if message_id:
@@ -126,6 +127,9 @@ def send_telegram_message(user_id, text, reply_markup=None, message_id=None):
                 'text': text,
                 'parse_mode': 'HTML'
             }
+            # Добавляем reply_to_message_id только для новых сообщений
+            if reply_to_message_id:
+                params['reply_to_message_id'] = reply_to_message_id
 
         if reply_markup:
             params['reply_markup'] = reply_markup
@@ -137,13 +141,14 @@ def send_telegram_message(user_id, text, reply_markup=None, message_id=None):
     except requests.exceptions.RequestException as e:
         raise ValueError(f'Ошибка отправки/редактирования сообщения: {str(e)}')
 
-def send_telegram_media_single(user_id, file_id, media_type, reply_markup=None):
+def send_telegram_media_single(user_id, file_id, media_type, reply_markup=None, reply_to_message_id=None):
     """
     Функция для отправки одиночного медиафайла в Telegram
-    id: ID пользователя для отправки сообщения
-    file_id: ID файла в Telegram
-    media_type: тип медиафайла ('voice', 'sticker', 'video_note')
+    :param id: ID пользователя для отправки сообщения
+    :param file_id: ID файла в Telegram
+    :param media_type: тип медиафайла ('voice', 'sticker', 'video_note')
     :param reply_markup: клавиатура (опционально)
+    :param reply_to_message_id: ID сообщения для ответа (опционально)
     """
     try:
         url = f'https://api.telegram.org/bot{TOKEN}/send{media_type.capitalize()}'
@@ -151,20 +156,26 @@ def send_telegram_media_single(user_id, file_id, media_type, reply_markup=None):
             'chat_id': user_id,
             media_type: file_id
         }
+        # Добавляем reply_to_message_id только для новых сообщений
+        if reply_to_message_id:
+            params['reply_to_message_id'] = reply_to_message_id
+        
         if reply_markup:
             params['reply_markup'] = reply_markup
+        
         response = requests.post(url, json=params)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         raise ValueError(f'Ошибка отправки медиафайла: {str(e)}')
 
-def send_telegram_media_group(user_id, media_list, reply_markup=None):
+def send_telegram_media_group(user_id, media_list, reply_markup=None, reply_to_message_id=None):
     """
     Функция для отправки группы медиафайлов в Telegram
-    id: ID пользователя для отправки сообщения
-    media_list: список медиафайлов в формате [{'type': 'photo', 'media': file_id, 'caption': caption}, ...]
+    :param id: ID пользователя для отправки сообщения
+    :param media_list: список медиафайлов в формате [{'type': 'photo', 'media': file_id, 'caption': caption}, ...]
     :param reply_markup: клавиатура (опционально)
+    :param reply_to_message_id: ID сообщения для ответа (опционально)
     """
     try:
         url = f'https://api.telegram.org/bot{TOKEN}/sendMediaGroup'
@@ -172,13 +183,20 @@ def send_telegram_media_group(user_id, media_list, reply_markup=None):
             'chat_id': user_id,
             'media': media_list
         }
+        # Добавляем reply_to_message_id только для новых сообщений
+        if reply_to_message_id:
+            params['reply_to_message_id'] = reply_to_message_id
+        
         if reply_markup:
             params['reply_markup'] = reply_markup
+        
         response = requests.post(url, json=params)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         raise ValueError(f'Ошибка отправки группы медиафайлов: {str(e)}')
+
+
 
 def get_bot_info():
     """
@@ -202,7 +220,7 @@ def get_bot_info():
 def check_user_interaction(user_id):
     """
     Проверяет, взаимодействовал ли пользователь с ботом
-    user_id: ID пользователя для проверки
+    :param user_id: ID пользователя для проверки
     Возвращает True, если пользователь взаимодействовал с ботом, False в противном случае
     """
     try:
@@ -222,7 +240,7 @@ def check_user_interaction(user_id):
 def get_user_info(user_id):
     """
     Получает информацию о пользователе
-    user_id: ID пользователя для получения информации
+    :param user_id: ID пользователя для получения информации
     Возвращает информацию о пользователе
     """
     try:

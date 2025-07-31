@@ -2,10 +2,11 @@ from telegram import process_media_files, send_telegram_message, send_telegram_m
 from telegram import get_bot_info, check_user_interaction
 
 from config import recipients
+from utils import write_log, LogType
 
 
 
-def messages(message, user_id: int):    
+def messages(message, user_id: int, reply_to_message: int):
     # Проверяем, есть ли получатель для текущего пользователя
     recipient_id = recipients.get(user_id)
     if not recipient_id:
@@ -19,7 +20,7 @@ def messages(message, user_id: int):
         return
     
     # Проверяем, взаимодействовал ли получатель с ботом
-    if not check_user_interaction(recipient_id):
+    if not check_user_interaction(user_id=recipient_id):
         send_telegram_message(
             user_id=user_id,
             text=(
@@ -29,11 +30,12 @@ def messages(message, user_id: int):
             )
         )
         return
-
+    
 
     # Обрабатываем сообщение
     try:
-        media_list, single_media = process_media_files(message)
+        media_list, single_media = process_media_files(message=message)
+
     except UnsupportedMessageFormat as e:
         # Отправляем сообщение об ошибке пользователю
         send_telegram_message(
@@ -44,6 +46,7 @@ def messages(message, user_id: int):
             )
         )
         return
+    
     except Exception as e:
         send_telegram_message(
             user_id=user_id,
@@ -54,7 +57,14 @@ def messages(message, user_id: int):
         )
         return
     
+
+    # Отправка сообщеня пользователю о новом входящем сообщении
+    send_telegram_message(
+        user_id=recipient_id,
+        text='💬 <b>Вам пришло анонимное сообщение!</b>'
+    )
     
+
     keyboard = {
         'inline_keyboard': [
             [
@@ -72,15 +82,10 @@ def messages(message, user_id: int):
         ]
     }
 
-    send_telegram_message(
-        user_id=recipient_id,
-        text='💬 <b>Вам пришло анонимное сообщение!</b>'
-    )
-
     # Если есть только текст
     if 'text' in message and not media_list and not single_media:
         send_telegram_message(
-            user_id==recipient_id,
+            user_id=recipient_id,
             text=message['text'],
             reply_markup=keyboard
         )
@@ -114,5 +119,6 @@ def messages(message, user_id: int):
     # Отправляем сообщение отправителю о доставке сообщения
     send_telegram_message(
         user_id=user_id,
-        text='✅ <b>Ваше сообщение успешно доставлено!</b>'
+        text='✅ <b>Ваше сообщение было успешно доставлено!</b>',
+        reply_to_message_id=reply_to_message
     )

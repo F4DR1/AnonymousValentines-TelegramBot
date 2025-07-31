@@ -3,12 +3,21 @@ from enum import Enum
 
 
 
-# # Настройка логирования (добавляем перед определением функции)
-# logging.basicConfig(
-#     filename='logs.log',
-#     level=logging.DEBUG,
-#     format='%(asctime)s - %(levelname)s - %(message)s'
-# )
+# Имя файла с логами
+LOGS_FILE_NAME = 'bot.log'
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOGS_FILE_NAME),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
 
 class LogType(Enum):
     INFO = 'Запись'
@@ -16,19 +25,26 @@ class LogType(Enum):
     WARNING = 'Попытка взлома'
     CRITICAL = 'Критическая ошибка'
 
-def write_log(message, log_type=LogType.INFO):
+
+
+def write_log(
+    message,
+    log_type: LogType = LogType.INFO
+):
     """
     Функция для записи логов в файл
-    message: сообщение для записи
-    log_type: тип записи (по умолчанию INFO)
+
+    :param message: сообщение для записи
+    :param log_type: тип записи (по умолчанию INFO)
     """
-    if log_type == LogType.INFO:
-        logging.info(message)
-    elif log_type == LogType.ERROR:
-        logging.error(message)
-    elif log_type == LogType.WARNING:
-        logging.warning(message)
-    elif log_type == LogType.CRITICAL:
-        logging.critical(message)
-    else:
-        raise ValueError(f'Неизвестный тип лога: {log_type}')
+    match log_type:
+        case LogType.INFO:
+            logging.info(message)
+        case LogType.ERROR:
+            logging.error(message)
+        case LogType.WARNING:
+            logging.warning(message)
+        case LogType.CRITICAL:
+            logging.critical(message)
+        case _:
+            raise ValueError(f'Неизвестный тип лога: {log_type}')

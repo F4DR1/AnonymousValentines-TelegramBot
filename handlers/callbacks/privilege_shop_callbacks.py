@@ -4,8 +4,8 @@ from config import db
 from config import daily_reveals, max_daily_reveals
 
 privilege_description = (
-    'Привилегии позволяют получить некоторые преимущества:'
-    f'<u>Премиум</u> – позволяет получать по <i>{daily_reveals} раскрытий</i> раз в день (но не более <i>{max_daily_reveals} раскрытий</i>)'
+    '<b>Привилегии позволяют получить некоторые преимущества:</b>\n'
+    f'<u>Премиум</u> – позволяет получать по <i>{daily_reveals} раскрытий</i> раз в день (но не более <i>{max_daily_reveals} раскрытий</i>!)'
 )
 
 
@@ -30,6 +30,7 @@ def privilege_shop(user_id: int, message_id: int=None):
     finally:
         db.close_connection()
     
+    
     if status_prices is not None:
         # Записи с "available_count" == -1
         not_has_available_count = [item for item in status_prices if item['available_count'] == -1]
@@ -51,8 +52,8 @@ def privilege_shop(user_id: int, message_id: int=None):
             # Добавляем кнопку как новую строку в клавиатуру
             keyboard['inline_keyboard'].append(promo_button)
 
-        # Добавляем кнопку назад
-        add_back_button(keyboard, message_id, 'shop')
+    # Добавляем кнопку назад
+    add_back_button(keyboard=keyboard, menu_name='shop')
     
 
     send_telegram_message(
@@ -91,8 +92,8 @@ def promo_privilege_shop(user_id: int, message_id: int=None):
         # Добавляем кнопки покупки
         add_buy_buttons(keyboard, all_user_statuses, has_available_count)
 
-        # Добавляем кнопку назад
-        add_back_button(keyboard, message_id, 'privilege_shop')
+    # Добавляем кнопку назад
+    add_back_button(keyboard=keyboard, menu_name='privilege_shop')
     
 
     send_telegram_message(
@@ -106,17 +107,15 @@ def promo_privilege_shop(user_id: int, message_id: int=None):
 
 
 
-def add_back_button(keyboard, message_id, menu_name):
-    message_id_text = '' if message_id is None else f':{message_id}'
-    if message_id is not None:
-        back_button = [
-            {
-                'text': '← Назад',
-                'callback_data': f'{menu_name}{message_id_text}'
-            }
-        ]
-        # Добавляем кнопку как новую строку в клавиатуру
-        keyboard['inline_keyboard'].append(back_button)
+def add_back_button(keyboard, menu_name):
+    back_button = [
+        {
+            'text': '← Назад',
+            'callback_data': menu_name
+        }
+    ]
+    # Добавляем кнопку как новую строку в клавиатуру
+    keyboard['inline_keyboard'].append(back_button)
 
 
 def add_buy_buttons(keyboard, all_user_statuses, items):
@@ -125,11 +124,11 @@ def add_buy_buttons(keyboard, all_user_statuses, items):
             status_id = item['user_status_id']
             level = item['lvl']
             duration_days = item['duration_days']
-            price = item['price'] / 100
+            price = item['price']
             discount = item['discount']
 
             discounted_price = price * (100 - discount) / 100
-            price_text = f'<s>{price}₽</s> {discounted_price}₽ (-{discount}%)' if discount > 0 else f'{price}₽'
+            price_text = f'{discounted_price}₽   (-{discount}%)⚠️' if discount > 0 else f'{price}₽'
 
 
             status = next((item for item in all_user_statuses if item['id'] == status_id), None)
@@ -137,7 +136,7 @@ def add_buy_buttons(keyboard, all_user_statuses, items):
 
             button = [
                 {
-                    'text': f'{display_name} за {price_text} на {duration_days} дн.',
+                    'text': f'{display_name} | {duration_days} дн. | {price_text}',
                     'callback_data': f'buy_privilege:{status_id}:{display_name}:{level}:{duration_days}:{discounted_price}'
                 }
             ]

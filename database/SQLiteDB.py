@@ -1,12 +1,10 @@
 import sqlite3
 from typing import List, Optional, Tuple, Any
 
-from config import DATABASE_URL
-
 
 
 class SQLiteDB:
-    def __init__(self, db_path: str = DATABASE_URL):
+    def __init__(self, db_path: str):
         self.db_path = db_path
         self.conn: Optional[sqlite3.Connection] = None
         self.cursor: Optional[sqlite3.Cursor] = None

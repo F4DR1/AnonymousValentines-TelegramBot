@@ -1,7 +1,9 @@
 from telegram import process_media_files, send_telegram_message, send_telegram_media_single, send_telegram_media_group, UnsupportedMessageFormat
 
-from config import bot_username, recipients, db
+from config import recipients, db
 from utils import write_log, LogType
+
+from telegram import get_bot_info
 
 
 
@@ -9,8 +11,8 @@ def help(user_id: int):
     text = (
         '💬 <b>Список доступных команд:</b>\n'
         '<i>/start</i> — получить личную ссылку\n'
-        '<i>/help</i> — получить помощь'
-        '<i>/shop</i> — перейти в магазин'
+        '<i>/help</i> — получить помощь\n'
+        '<i>/shop</i> — перейти в магазин\n'
     )
     send_telegram_message(
         user_id=user_id,
@@ -24,19 +26,18 @@ def shop(user_id: int, message_id: int=None):
         'Здесь вы можете преобрести раскрытия и привилегии.'
     )
 
-    message_id_text = '' if message_id is None else f':{message_id}'
     keyboard = {
         'inline_keyboard': [
             [
                 {
                     'text': '🔍 Раскрытия 🔎',
-                    'callback_data': f'reveal_shop{message_id_text}'
+                    'callback_data': f'reveal_shop'
                 }
             ],
             [
                 {
                     'text': '⚜️ Привелегии ⚜️',
-                    'callback_data': f'privilege_shop{message_id_text}'
+                    'callback_data': f'privilege_shop'
                 }
             ]
         ]
@@ -91,34 +92,29 @@ def start(message, command: str, user_id: int):
     
     # Отправляем сообщение с личный ссылкой пользователя
     try:
+        bot_info = get_bot_info()
+        bot_username = bot_info['username']
         if bot_username:
             personal_link = f'https://t.me/{bot_username}?start={user_id}'
-            write_log(f'Сформирована персональная ссылка для пользователя {user_id}: {personal_link}')
-            send_telegram_message(
-                user_id=user_id, 
-                text=(
-                    '🌐 <b>Начни получать анонимные сообщения прямо сейчас!</b>\n\n'
-                    'Твоя личная ссылка:\n'
-                    f'👉 <code>{personal_link}</code>\n'
-                    '<i><u>(нажмите на ссылку, чтобы скопировать её)</u></i>\n\n'
-                    '💬 <i>Поделись этой ссылкой 👆 с друзьями или в своих соцсетях/блоге, чтобы начать получать анонимные сообщения!</i>'
-                )
+            text=(
+                '🌐 <b>Начни получать анонимные сообщения прямо сейчас!</b>\n\n'
+                'Твоя личная ссылка:\n'
+                f'👉 <code>{personal_link}</code>\n'
+                '<i><u>(нажмите на ссылку, чтобы скопировать её)</u></i>\n\n'
+                '💬 <i>Поделись этой ссылкой 👆 с друзьями или в своих соцсетях/блоге, чтобы начать получать анонимные сообщения!</i>'
             )
         else:
-            send_telegram_message(
-                user_id=user_id, 
-                text=(
-                    '❌ <b>Не удалось сформировать персональную ссылку.</b>\n'
-                    'Пожалуйста, попробуйте снова.'
-                )
-            )
+            raise ValueError('Не удалось получить имя пользователя бота')
     
     except Exception as e:
-        write_log(f'Ошибка при получении информации о боте для пользователя {user_id}: {str(e)}', LogType.ERROR)
+        write_log(f'Ошибка получения информации о боте для пользователя {user_id}: {str(e)}', LogType.ERROR)
+        text=(
+            '❌ <b>Не удалось сформировать персональную ссылку.</b>\n'
+            'Пожалуйста, попробуйте позже...'
+        )
+    
+    finally:
         send_telegram_message(
             user_id=user_id,
-            text=(
-                '❌ <b>Не удалось сформировать персональную ссылку.</b>\n'
-                'Пожалуйста, попробуйте снова.'
-            )
+            text=text
         )

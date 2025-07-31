@@ -5,7 +5,7 @@ from config import db
 
 
 def reveal_shop(user_id: int, message_id: int=None):
-    text = '🔎 <b>Текущий курс раскрытий:</b> 🔍'
+    text = '🔍 <b>Текущий курс раскрытий</b> 🔎'
     keyboard = {
         'inline_keyboard': []
     }
@@ -43,8 +43,8 @@ def reveal_shop(user_id: int, message_id: int=None):
             # Добавляем кнопку как новую строку в клавиатуру
             keyboard['inline_keyboard'].append(promo_button)
 
-        # Добавляем кнопку назад
-        add_back_button(keyboard, message_id, 'shop')
+    # Добавляем кнопку назад
+    add_back_button(keyboard=keyboard, menu_name='shop')
     
         
     send_telegram_message(
@@ -80,8 +80,8 @@ def promo_reveal_shop(user_id: int, message_id: int=None):
         # Добавляем кнопки покупки
         add_buy_buttons(keyboard, has_available_count)
 
-        # Добавляем кнопку назад
-        add_back_button(keyboard, message_id, 'reveal_shop')
+    # Добавляем кнопку назад
+    add_back_button(keyboard=keyboard, menu_name='reveal_shop')
 
 
     send_telegram_message(
@@ -95,32 +95,30 @@ def promo_reveal_shop(user_id: int, message_id: int=None):
 
 
 
-def add_back_button(keyboard, message_id, menu_name):
-    message_id_text = '' if message_id is None else f':{message_id}'
-    if message_id is not None:
-        back_button = [
-            {
-                'text': '← Назад',
-                'callback_data': f'{menu_name}{message_id_text}'
-            }
-        ]
-        # Добавляем кнопку как новую строку в клавиатуру
-        keyboard['inline_keyboard'].append(back_button)
+def add_back_button(keyboard, menu_name):
+    back_button = [
+        {
+            'text': '← Назад',
+            'callback_data': menu_name
+        }
+    ]
+    # Добавляем кнопку как новую строку в клавиатуру
+    keyboard['inline_keyboard'].append(back_button)
 
 
 def add_buy_buttons(keyboard, items):
     if len(items) > 0:
         for item in items:
             reveal_count = item['reveal_count']
-            price = item['price'] / 100
+            price = item['price']
             discount = item['discount']
 
             discounted_price = price * (100 - discount) / 100
-            price_text = f'<s>{price}₽</s> {discounted_price}₽ (-{discount}%)' if discount > 0 else f'{price}₽'
+            price_text = f'{discounted_price}₽   (-{discount}%)⚠️' if discount > 0 else f'{price}₽'
 
             button = [
                 {
-                    'text': f'{reveal_count} за {price_text}',
+                    'text': f'{reveal_count} шт. | {price_text}',
                     'callback_data': f'buy_reveal:{reveal_count}:{discounted_price}'
                 }
             ]
